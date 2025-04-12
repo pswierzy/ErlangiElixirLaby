@@ -17,9 +17,11 @@ find_closest(PeopleLocs, SensorsLocs) ->
   [find_for_person(PL, SensorsLocs) || PL <- PeopleLocs].
 
 find_closest(PeopleLocs, SensorsLocs, ParentPID) ->
-  ParentPID ! [fun() ->
-    spawn(?MODULE, find_for_person, [PersonLoc, SensorsLocs, self()]),
-    receive
-      N -> N
-    end
-   end || PersonLoc <- PeopleLocs].
+  [spawn(?MODULE, find_for_person, [PersonLoc, SensorsLocs, self()])
+    || PersonLoc <- PeopleLocs],
+
+  Results = [receive
+               D -> D
+             end || _ <- PeopleLocs],
+
+  ParentPID ! Results.

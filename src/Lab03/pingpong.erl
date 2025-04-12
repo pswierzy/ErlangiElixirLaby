@@ -23,6 +23,7 @@ pong_loop() ->
   receive
     0 ->
       io:format("Koniec Pong ~n"),
+      ping ! 0,
       pong_loop();
     fin ->
       io:format("Koniec Pong ~n"),

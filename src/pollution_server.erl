@@ -1,0 +1,2 @@
+-module(pollution_server).
+-export([]).
