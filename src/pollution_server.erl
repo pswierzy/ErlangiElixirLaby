@@ -2,7 +2,8 @@
 -export([start/0, stop/0]).
 -export([
   add_station/2, add_value/4, remove_value/3, get_one_value/3,
-  get_daily_mean/2, get_station_min/2, get_minimum_pollution_station/1
+  get_daily_mean/2, get_station_min/2, get_station_mean/2,
+  get_minimum_pollution_station/1
 ]).
 -export([init/0, loop/1]).
 
@@ -11,8 +12,8 @@ start() ->
   ok.
 
 stop() ->
-  pollution_server ! stop,
-  ok.
+  pollution_server ! {self(), stop},
+  receive ok -> ok end.
 
 init() ->
   State = pollution:create_monitor(),
@@ -47,11 +48,14 @@ loop(State) ->
     {From, {get_station_min, Station, Type}} ->
       From ! pollution:get_station_min(Station, Type, State),
       loop(State);
+    {From, {get_station_mean, Station, Type}} ->
+      From ! pollution:get_station_mean(Station, Type, State),
+      loop(State);
     {From, {get_minimum_pollution_station, Type}} ->
       From ! pollution:get_minimum_pollution_station(Type, State),
       loop(State);
 
-    stop  -> ok;
+    {From, stop}  -> From ! ok, ok;
     _     -> loop(State)
   end.
 
@@ -77,6 +81,10 @@ get_daily_mean(Type, Day) ->
 
 get_station_min(Station, Type) ->
   pollution_server ! {self(), {get_station_min, Station, Type}},
+  receive R -> R end.
+
+get_station_mean(Station, Type) ->
+  pollution_server ! {self(), {get_station_mean, Station, Type}},
   receive R -> R end.
 
 get_minimum_pollution_station(Type) ->
