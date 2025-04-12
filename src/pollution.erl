@@ -1,5 +1,5 @@
 -module(pollution).
--export([create_monitor/0, add_station/3, add_value/5, remove_value/4, get_one_value/4, get_daily_mean/3, get_station_min/3, get_minimum_pollution_station/2]).
+-export([create_monitor/0, add_station/3, add_value/5, remove_value/4, get_one_value/4, get_daily_mean/3, get_station_min/3, get_station_mean/3, get_minimum_pollution_station/2]).
 
 create_monitor() -> #{stations => #{}, measurements => #{}}.
 
@@ -24,7 +24,7 @@ add_value(Station, Date, Type, Value, #{measurements := Measurements} = Pollutio
     [{Name, Coords}] ->
       case maps:find({Name, Date, Type}, Measurements) of
         error -> case maps:find({Coords, Date, Type}, Measurements) of
-                   error -> Pollution#{measurements => Measurements#{{Station, Date, Type} => Value}};
+                   error -> Pollution#{measurements => Measurements#{{Name, Date, Type} => Value}};
                    _ -> {error, duplicate_value}
                  end;
         _ -> {error, duplicate_value}
@@ -59,15 +59,26 @@ get_station_min(Station, Type, #{measurements := Measurements} = Pollution) ->
   FoundStation = find_station(Station, Pollution),
   case FoundStation of
     [{Name, Coords}] ->
-      case [Value || {{Stat, _, TypePM}, Value} <- maps:to_list(Measurements), Stat =:= Name orelse Stat =:= Coords, TypePM = Type] of
+      case [Value || {{Stat, _, TypePM}, Value} <- maps:to_list(Measurements), Stat =:= Name orelse Stat =:= Coords, TypePM =:= Type] of
         [] -> {error, no_measurements_found};
         Values -> lists:min(Values)
       end;
     [] -> {error, not_found}
   end.
 
-get_daily_mean(Type, Day, #{measurements := Measurements}) ->
-  case [Value || {{_, Date, TypePM}, Value} <- maps:to_list(Measurements), {Day, _} = Date, TypePM =:= Type] of
+get_station_mean(Station, Type, #{measurements := Measurements} = Pollution) ->
+  FoundStation = find_station(Station, Pollution),
+  case FoundStation of
+    [{Name, Coords}] ->
+      case [Value || {{Stat, _, TypePM}, Value} <- maps:to_list(Measurements), Stat =:= Name orelse Stat =:= Coords, TypePM =:= Type] of
+        [] -> {error, no_measurements_found};
+        Values -> lists:sum(Values) / length(Values)
+      end;
+    [] -> {error, not_found}
+  end.
+
+get_daily_mean(TypeChecked, DateChecked, #{measurements := Measurements}) ->
+  case [Value || {{_, {Date, _}, Type}, Value} <- maps:to_list(Measurements), Date =:= DateChecked, Type =:= TypeChecked] of
     [] -> {error, no_measurements_found};
     Values -> lists:sum(Values) / length(Values)
   end.
