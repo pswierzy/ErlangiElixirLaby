@@ -1,0 +1,89 @@
+# Untitled notebook
+
+## Section
+
+```elixir
+defmodule Pars do
+  def parse_datetime(date) do
+    date_tuple = date
+    |> String.slice(0..9)
+    |> String.split("-")
+    |> Enum.map(&String.to_integer/1)
+    |> List.to_tuple
+
+    time_tuple = date
+    |> String.slice(11..18)
+    |> String.split(":")
+    |> Enum.map(&String.to_integer/1)
+    |> List.to_tuple
+
+    {date_tuple, time_tuple}
+  end
+  
+  def parse_line(line) do
+    [datestr, typestr, valuestr, stationIDstr, stationNamestr, locationstr] = line
+    date = Pars.parse_datetime(datestr)
+    value = String.to_float(valuestr)
+    stationID = String.to_integer(stationIDstr)
+    loc = locationstr
+    |> String.split(",")
+    |> Enum.map(&String.to_float/1)
+    |> List.to_tuple
+
+    %{:datetime => date,
+    :location => loc,
+    :stationID => stationID,
+    :stationName => stationNamestr,
+    :pollutionType => typestr,
+    :pollutionLevel => value}
+  end
+end
+
+data = File.read!("C:\\Users\\piotr\\Documents\\GitHub\\ErlangiElixirLaby\\ErlangApp\\pollution_app\\data\\AirlyData-ALL-50k.csv")
+|> String.trim
+|> String.split("\n")
+|> Enum.map(&(String.split(&1, ";")))
+|> Enum.map(&Pars.parse_line/1)
+```
+
+```elixir
+defmodule Identify do
+  def identifyStations(data) do
+    data
+    |> Enum.uniq_by(&(&1.stationID))
+    |> Enum.map(&(Map.drop(&1, [:datetime, :pollutionType, :pollutionLevel])))
+  end
+end
+
+stationData = data 
+|> Identify.identifyStations
+```
+
+```elixir
+Code.append_path('C:\\Users\\piotr\\Documents\\GitHub\\ErlangiElixirLaby\\ErlangApp\\pollution_app\\_build\\default\\lib\\pollution_app\\ebin')
+Application.start(:pollution_app)
+```
+
+```elixir
+defmodule Loading do
+  def loadStations(data) do
+    data
+    |> Enum.map(&(
+      :pollution_gen_server.add_station("#{&1.stationName}, id:#{&1.stationID}", &1.location)
+    ))
+  end
+  def loadValues(data) do
+    data
+    |> Enum.map(&(
+      :pollution_gen_server.add_value(&1.location, &1.datetime, &1.pollutionType, &1.pollutionLevel)
+    ))
+  end
+end
+
+Loading.loadStations(stationData)
+Loading.loadValues(data)
+```
+
+```elixir
+:pollution_gen_server.get_station_mean({50.057224, 19.933157}, "PM1")
+```
