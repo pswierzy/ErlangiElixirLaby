@@ -1,4 +1,4 @@
-# Untitled notebook
+# Pollution App
 
 ## Section
 
@@ -8,12 +8,14 @@ defmodule Pars do
     date_tuple = date
     |> String.slice(0..9)
     |> String.split("-")
+    |> Enum.map(&String.trim/1)
     |> Enum.map(&String.to_integer/1)
     |> List.to_tuple
 
     time_tuple = date
     |> String.slice(11..18)
     |> String.split(":")
+    |> Enum.map(&String.trim/1)
     |> Enum.map(&String.to_integer/1)
     |> List.to_tuple
 
@@ -27,6 +29,7 @@ defmodule Pars do
     stationID = String.to_integer(stationIDstr)
     loc = locationstr
     |> String.split(",")
+    |> Enum.map(&String.trim/1)
     |> Enum.map(&String.to_float/1)
     |> List.to_tuple
 
@@ -61,6 +64,7 @@ stationData = data
 
 ```elixir
 Code.append_path('C:\\Users\\piotr\\Documents\\GitHub\\ErlangiElixirLaby\\ErlangApp\\pollution_app\\_build\\default\\lib\\pollution_app\\ebin')
+Application.stop(:pollution_app)
 Application.start(:pollution_app)
 ```
 
@@ -79,11 +83,30 @@ defmodule Loading do
     ))
   end
 end
-
-Loading.loadStations(stationData)
-Loading.loadValues(data)
 ```
 
 ```elixir
 :pollution_gen_server.get_station_mean({50.057224, 19.933157}, "PM1")
+```
+
+```elixir
+fn -> data |> Identify.identifyStations |> Loading.loadStations end
+|> :timer.tc
+|> elem(0)
+```
+
+```elixir
+fn -> Loading.loadValues(data) end
+|> :timer.tc
+|> elem(0)
+```
+
+```elixir
+fn -> :pollution_gen_server.get_station_min("Polska, Kraków, Studencka, id:9910", "PM10") end
+|> :timer.tc
+```
+
+```elixir
+fn -> :pollution_gen_server.get_daily_mean("PM25", {2024, 2, 10}) end
+|> :timer.tc
 ```

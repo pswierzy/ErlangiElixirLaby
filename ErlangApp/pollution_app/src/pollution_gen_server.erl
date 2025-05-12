@@ -18,7 +18,7 @@ add_station(Name, Coords) ->
   gen_server:call(?MODULE, {add_station, Name, Coords}).
 
 add_value(Station, Date, Type, Value) ->
-  gen_server:cast(?MODULE, {add_value, Station, Date, Type, Value}).
+  gen_server:call(?MODULE, {add_value, Station, Date, Type, Value}).
 
 remove_value(Station, Date, Type) ->
   gen_server:call(?MODULE, {remove_value, Station, Date, Type}).
@@ -32,14 +32,14 @@ get_station_min(Station, Type) ->
 get_station_mean(Station, Type) ->
   gen_server:call(?MODULE, {get_station_mean, Station, Type}).
 
-get_daily_mean(Type, Date) ->
+get_daily_mean(Date, Type) ->
   gen_server:call(?MODULE, {get_daily_mean, Type, Date}).
 
 get_minimum_pollution_station(Type) ->
   gen_server:call(?MODULE, {get_minimum_pollution_station, Type}).
 
 crash() ->
-  Fail = 1/0.
+  _Fail = 1/0.
 
 %% Callbacks
 init([]) ->
@@ -60,6 +60,20 @@ handle_call({add_station, Name, Coords}, _From, #{stations := Station} = Polluti
           {reply, ok, NewState}
       end;
     _ -> {reply, {error, duplicate_name}, Pollution}
+  end;
+handle_call({add_value, Station, Date, Type, Value}, _From, #{measurements := Measurements} = Pollution) ->
+  case find_station(Station, Pollution) of
+    [] -> {reply, {error, no_station_found}, Pollution};
+    [{Name, Coords}] ->
+      case maps:find({Name, Date, Type}, Measurements) of
+        error -> case maps:find({Coords, Date, Type}, Measurements) of
+                   error ->
+                     NewMeasurements = Measurements#{{Name, Date, Type} => Value},
+                     {reply, ok, Pollution#{measurements => NewMeasurements}};
+                   _ -> {reply, {error, duplicate_data}, Pollution}
+                 end;
+        _ -> {reply, {error, duplicate_data}, Pollution}
+      end
   end;
 handle_call({remove_value, Station, Date, Type}, _From, #{measurements := Measurements} = Pollution) ->
   Key = {Station, Date, Type},
@@ -102,7 +116,7 @@ handle_call({get_station_mean, Station, Type}, _From, #{measurements := Measurem
       end;
     [] -> {reply, {error, not_found}, Pollution}
   end;
-handle_call({get_daily_mean, TypeChecked, DateChecked}, _From, #{measurements := Measurements} = Pollution) ->
+handle_call({get_daily_mean, DateChecked, TypeChecked}, _From, #{measurements := Measurements} = Pollution) ->
   case [Value || {{_, {Date, _}, Type}, Value} <- maps:to_list(Measurements), Date =:= DateChecked, Type =:= TypeChecked] of
     [] -> {reply, {error, no_measurements_found}, Pollution};
     Values -> {reply, lists:sum(Values) / length(Values), Pollution}
@@ -121,20 +135,6 @@ handle_call({get_minimum_pollution_station, Type}, _From, #{measurements := Meas
 handle_call(_Request, _From, State) ->
   {reply, ok, State}.
 
-handle_cast({add_value, Station, Date, Type, Value}, #{measurements := Measurements} = Pollution) ->
-  case find_station(Station, Pollution) of
-    [] -> {noreply, Pollution};
-    [{Name, Coords}] ->
-      case maps:find({Name, Date, Type}, Measurements) of
-        error -> case maps:find({Coords, Date, Type}, Measurements) of
-                   error ->
-                     NewMeasurements = Measurements#{{Name, Date, Type} => Value},
-                     {noreply, Pollution#{measurements => NewMeasurements}};
-                   _ -> {noreply, Pollution}
-                 end;
-        _ -> {noreply, Pollution}
-      end
-  end;
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
