@@ -73,3 +73,6 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+config :pollutiondb, ecto_repos: [Pollutiondb.Repo]
+config :pollutiondb, Pollutiondb.Repo, database: "database/pollutiondb.db"
